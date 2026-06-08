@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlashFeed Live Monitor</title>
+    <style>
+        body { background: #0f172a; color: white; text-align: center; font-family: sans-serif; padding-top: 100px; }
+        .box { background: #1e293b; padding: 30px; display: inline-block; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        h1 { color: #38bdf8; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>🌐 FlashFeed Architecture Monitor</h1>
+        <h2 id="status" style="color: #cbd5e1;">Connecting to Backend...</h2>
+    </div>
+
+    <script>
+        fetch('/api/status')
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === "Success") {
+                    document.getElementById('status').innerText = "⚡ Connected to DB! Time: " + new Date(data.database_time).toLocaleString();
+                    document.getElementById('status').style.color = "#34d399";
+                }
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = "❌ Connection Failed";
+                document.getElementById('status').style.color = "#fca5a5";
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AWS Django CI/CD &amp; Monitoring</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            aws:    { DEFAULT: '#FF9900', dark: '#e68a00' },
+            django: { DEFAULT: '#092E20', light: '#0C4B33' },
+          },
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 0.6s ease-out both',
+            'pulse-slow':  'pulse 3s cubic-bezier(0.4,0,0.6,1) infinite',
+          },
+          keyframes: {
+            fadeInUp: {
+              '0%':   { opacity: '0', transform: 'translateY(24px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+          },
+        },
+      },
+    }
+  </script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Gradient mesh background */
+    .hero-bg {
+      background: radial-gradient(ellipse 80% 60% at 50% -10%, rgba(255,153,0,0.18) 0%, transparent 70%),
+                  radial-gradient(ellipse 60% 50% at 80% 80%,  rgba(9,46,32,0.35)   0%, transparent 70%),
+                  #0a0f1e;
+    }
+    /* Animated gradient border */
+    .card-glow {
+      position: relative;
+    }
+    .card-glow::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      background: linear-gradient(135deg, rgba(255,153,0,0.4), rgba(9,46,32,0.6), rgba(255,153,0,0.2));
+      z-index: -1;
+    }
+    /* Pipeline connector line */
+    .pipeline-line {
+      background: linear-gradient(90deg, #FF9900, #0C4B33);
+    }
+    /* Terminal cursor blink */
+    .cursor::after {
+      content: '▋';
+      animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+  </style>
+</head>
+
+<body class="hero-bg text-gray-100 font-sans antialiased min-h-screen">
+
+  <!-- =====================================================================
+       NAVBAR
+  ====================================================================== -->
+  <nav class="fixed top-0 inset-x-0 z-50 backdrop-blur-md bg-black/30 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <!-- Logo -->
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-aws flex items-center justify-center shadow-lg shadow-aws/30">
+          <svg class="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M13.527 12.003c0 .351-.032.69-.09 1.015l-1.55-.87a4.5 4.5 0 0 0 .14-1.145c0-.39-.048-.768-.138-1.13l1.553-.87c.057.322.085.657.085.999v.001zm-1.527 3.997a4 4 0 0 1-3.464-2h-1.8A5.5 5.5 0 0 0 12 17.5a5.5 5.5 0 0 0 4.764-2.75h-1.8A4 4 0 0 1 12 16zm0-8a4 4 0 0 1 2.964 1.25h1.8A5.5 5.5 0 0 0 12 6.5a5.5 5.5 0 0 0-4.764 2.75h1.8A4 4 0 0 1 12 8z"/>
+          </svg>
+        </div>
+        <span class="font-bold text-white tracking-tight">Django<span class="text-aws">Cloud</span></span>
+      </div>
+
+      <!-- Nav links -->
+      <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
+        <a href="#stack"      class="hover:text-white transition-colors">Stack</a>
+        <a href="#pipeline"   class="hover:text-white transition-colors">Pipeline</a>
+        <a href="#monitoring" class="hover:text-white transition-colors">Monitoring</a>
+        <a href="#endpoints"  class="hover:text-white transition-colors">Endpoints</a>
+      </div>
+
+      <!-- CTA -->
+      <a href="/api/health/"
+         class="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-aws text-black text-sm font-semibold hover:bg-aws-dark transition-colors shadow-lg shadow-aws/20">
+        <span class="w-2 h-2 rounded-full bg-black animate-pulse-slow"></span>
+        Live Health Check
+      </a>
+    </div>
+  </nav>
+
+
+  <!-- =====================================================================
+       HERO
+  ====================================================================== -->
+  <section class="pt-40 pb-28 px-6 text-center relative overflow-hidden">
+    <!-- Decorative rings -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+      <div class="w-[600px] h-[600px] rounded-full border border-aws/10 animate-pulse-slow"></div>
+      <div class="absolute w-[400px] h-[400px] rounded-full border border-aws/15"></div>
+      <div class="absolute w-[200px] h-[200px] rounded-full border border-aws/20"></div>
+    </div>
+
+    <div class="relative max-w-4xl mx-auto">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-aws/10 border border-aws/30 text-aws text-xs font-semibold uppercase tracking-widest mb-8 animate-fade-in-up">
+        <span class="w-1.5 h-1.5 rounded-full bg-aws animate-pulse"></span>
+        Production Deployment Active
+      </div>
+
+      <h1 class="text-5xl md:text-7xl font-extrabold leading-tight tracking-tight mb-6 animate-fade-in-up"
+          style="animation-delay:0.1s">
+        Django on
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-aws to-yellow-300">AWS EC2</span>
+        <br />with Full
+        <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300">CI/CD</span>
+      </h1>
+
+      <p class="text-lg md:text-xl text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed animate-fade-in-up"
+         style="animation-delay:0.2s">
+        A production-grade Django backend deployed natively on Ubuntu EC2 — automated with
+        GitHub Actions, served by Gunicorn + Nginx, and monitored with Prometheus &amp; Grafana.
+      </p>
+
+      <div class="flex flex-wrap items-center justify-center gap-4 animate-fade-in-up" style="animation-delay:0.3s">
+        <a href="/api/health/"
+           class="px-6 py-3 rounded-xl bg-aws text-black font-bold hover:bg-aws-dark transition-all shadow-xl shadow-aws/25 hover:shadow-aws/40 hover:-translate-y-0.5">
+          Check API Health →
+        </a>
+        <a href="/admin/"
+           class="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white font-semibold hover:bg-white/10 transition-all hover:-translate-y-0.5">
+          Django Admin
+        </a>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       TECH STACK BADGES
+  ====================================================================== -->
+  <section id="stack" class="py-16 px-6 border-y border-white/5">
+    <div class="max-w-5xl mx-auto">
+      <p class="text-center text-xs font-semibold uppercase tracking-widest text-gray-500 mb-10">
+        Built with
+      </p>
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+        {% for item in stack %}
+        <div class="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/5 border border-white/10
+                    hover:border-aws/40 hover:bg-aws/5 transition-all group cursor-default">
+          <span class="text-2xl">{{ item.icon }}</span>
+          <span class="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors text-center">
+            {{ item.name }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       CI/CD PIPELINE VISUALISER
+  ====================================================================== -->
+  <section id="pipeline" class="py-24 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Automated <span class="text-aws">CI/CD Pipeline</span>
+        </h2>
+        <p class="text-gray-400 max-w-xl mx-auto">
+          Every push to <code class="text-aws font-mono bg-aws/10 px-1.5 py-0.5 rounded">main</code>
+          triggers a zero-downtime deployment to EC2 via GitHub Actions.
+        </p>
+      </div>
+
+      <!-- Pipeline steps -->
+      <div class="relative">
+        <!-- Connector line (desktop) -->
+        <div class="hidden md:block absolute top-10 left-[10%] right-[10%] h-0.5 pipeline-line rounded-full opacity-40"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6 relative">
+          {% for step in pipeline_steps %}
+          <div class="flex flex-col items-center text-center group">
+            <!-- Icon circle -->
+            <div class="w-20 h-20 rounded-2xl flex items-center justify-center text-3xl mb-4
+                        bg-gradient-to-br {{ step.gradient }}
+                        shadow-lg group-hover:scale-110 transition-transform duration-300 relative z-10">
+              {{ step.icon }}
+            </div>
+            <h3 class="font-bold text-white text-sm mb-1">{{ step.title }}</h3>
+            <p class="text-xs text-gray-500 leading-relaxed">{{ step.desc }}</p>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Workflow YAML preview -->
+      <div class="mt-16 rounded-2xl bg-gray-950 border border-white/10 overflow-hidden card-glow">
+        <div class="flex items-center gap-2 px-5 py-3 bg-white/5 border-b border-white/10">
+          <div class="w-3 h-3 rounded-full bg-red-500/70"></div>
+          <div class="w-3 h-3 rounded-full bg-yellow-500/70"></div>
+          <div class="w-3 h-3 rounded-full bg-green-500/70"></div>
+          <span class="ml-3 text-xs text-gray-500 font-mono">.github/workflows/deploy.yml</span>
+        </div>
+        <pre class="p-6 text-xs font-mono text-gray-300 overflow-x-auto leading-relaxed"><code><span class="text-aws">name</span><span class="text-gray-500">:</span> Django CI/CD Pipeline
+
+<span class="text-aws">on</span><span class="text-gray-500">:</span>
+  <span class="text-emerald-400">push</span><span class="text-gray-500">:</span>
+    <span class="text-blue-400">branches</span><span class="text-gray-500">:</span> <span class="text-yellow-300">[ "main" ]</span>
+
+<span class="text-aws">jobs</span><span class="text-gray-500">:</span>
+  <span class="text-emerald-400">deploy</span><span class="text-gray-500">:</span>
+    <span class="text-blue-400">runs-on</span><span class="text-gray-500">:</span> ubuntu-latest
+    <span class="text-blue-400">steps</span><span class="text-gray-500">:</span>
+      <span class="text-gray-500">- name:</span> Checkout code
+        <span class="text-gray-500">uses:</span> <span class="text-yellow-300">actions/checkout@v4</span>
+
+      <span class="text-gray-500">- name:</span> Deploy to AWS EC2 via SSH
+        <span class="text-gray-500">uses:</span> <span class="text-yellow-300">appleboy/ssh-action@v1.0.3</span>
+        <span class="text-gray-500">with:</span>
+          <span class="text-blue-400">host</span><span class="text-gray-500">:</span> <span class="text-pink-400">${{ secrets.SERVER_IP }}</span>
+          <span class="text-blue-400">script</span><span class="text-gray-500">: |</span>
+            git pull origin main
+            pip install -r requirements.txt
+            python manage.py migrate
+            python manage.py collectstatic --noinput
+            sudo systemctl restart gunicorn</code></pre>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       INFRASTRUCTURE CARDS
+  ====================================================================== -->
+  <section class="py-24 px-6 bg-black/20">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Production <span class="text-emerald-400">Infrastructure</span>
+        </h2>
+        <p class="text-gray-400">Every layer of the stack running natively on Ubuntu EC2.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% for card in infra_cards %}
+        <div class="rounded-2xl bg-white/5 border border-white/10 p-6
+                    hover:border-{{ card.accent }}/40 hover:bg-{{ card.accent }}/5
+                    transition-all duration-300 group card-glow">
+          <div class="w-12 h-12 rounded-xl bg-{{ card.accent }}/10 border border-{{ card.accent }}/20
+                      flex items-center justify-center text-2xl mb-5 group-hover:scale-110 transition-transform">
+            {{ card.icon }}
+          </div>
+          <h3 class="font-bold text-white text-lg mb-2">{{ card.title }}</h3>
+          <p class="text-sm text-gray-400 leading-relaxed mb-4">{{ card.desc }}</p>
+          <div class="flex flex-wrap gap-2">
+            {% for tag in card.tags %}
+            <span class="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-xs text-gray-400 font-mono">
+              {{ tag }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       MONITORING SECTION
+  ====================================================================== -->
+  <section id="monitoring" class="py-24 px-6">
+    <div class="max-w-5xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold mb-4">
+          Observability &amp; <span class="text-purple-400">Monitoring</span>
+        </h2>
+        <p class="text-gray-400 max-w-xl mx-auto">
+          Full-stack metrics collection, alerting, and dashboards — all running natively on the same EC2 instance.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Metrics grid -->
+        <div class="grid grid-cols-2 gap-4">
+          {% for metric in metrics %}
+          <div class="rounded-xl bg-white/5 border border-white/10 p-5 hover:border-purple-500/30 transition-colors">
+            <div class="text-2xl mb-3">{{ metric.icon }}</div>
+            <div class="text-2xl font-bold text-white mb-1">{{ metric.value }}</div>
+            <div class="text-xs text-gray-500">{{ metric.label }}</div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Stack list -->
+        <div class="rounded-2xl bg-white/5 border border-white/10 p-6">
+          <h3 class="font-bold text-white mb-5 flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+            Monitoring Stack
+          </h3>
+          <div class="space-y-4">
+            {% for tool in monitoring_tools %}
+            <div class="flex items-center justify-between py-3 border-b border-white/5 last:border-0">
+              <div class="flex items-center gap-3">
+                <span class="text-xl">{{ tool.icon }}</span>
+                <div>
+                  <div class="text-sm font-semibold text-white">{{ tool.name }}</div>
+                  <div class="text-xs text-gray-500">{{ tool.desc }}</div>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded-full text-xs font-mono
+                           {% if tool.status == 'Active' %}bg-emerald-500/10 text-emerald-400 border border-emerald-500/20
+                           {% else %}bg-gray-500/10 text-gray-400 border border-gray-500/20{% endif %}">
+                :{{ tool.port }}
+              </span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       ENDPOINTS TABLE
+  ====================================================================== -->
+  <section id="endpoints" class="py-24 px-6 bg-black/20">
+    <div class="max-w-3xl mx-auto">
+      <div class="text-center mb-12">
+        <h2 class="text-3xl font-bold mb-4">
+          API <span class="text-aws">Endpoints</span>
+        </h2>
+        <p class="text-gray-400">Available routes on this deployment.</p>
+      </div>
+
+      <div class="rounded-2xl bg-gray-950 border border-white/10 overflow-hidden">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-white/10 bg-white/5">
+              <th class="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Method</th>
+              <th class="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Endpoint</th>
+              <th class="text-left px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ep in endpoints %}
+            <tr class="border-b border-white/5 last:border-0 hover:bg-white/5 transition-colors">
+              <td class="px-6 py-4">
+                <span class="px-2 py-1 rounded font-mono text-xs font-bold
+                  {% if ep.method == 'GET' %}bg-emerald-500/10 text-emerald-400
+                  {% elif ep.method == 'POST' %}bg-blue-500/10 text-blue-400
+                  {% else %}bg-gray-500/10 text-gray-400{% endif %}">
+                  {{ ep.method }}
+                </span>
+              </td>
+              <td class="px-6 py-4 font-mono text-xs text-aws">
+                <a href="{{ ep.url }}" class="hover:underline">{{ ep.url }}</a>
+              </td>
+              <td class="px-6 py-4 text-gray-400 text-xs">{{ ep.desc }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- =====================================================================
+       FOOTER
+  ====================================================================== -->
+  <footer class="py-12 px-6 border-t border-white/10">
+    <div class="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-lg bg-aws flex items-center justify-center">
+          <span class="text-black text-xs font-bold">D</span>
+        </div>
+        <span class="text-sm text-gray-400">
+          Django CI/CD Monitoring — deployed on
+          <span class="text-aws font-semibold">AWS EC2</span>
+        </span>
+      </div>
+      <div class="flex items-center gap-6 text-xs text-gray-600">
+        <span>Django 4.2</span>
+        <span>·</span>
+        <span>Gunicorn</span>
+        <span>·</span>
+        <span>Nginx</span>
+        <span>·</span>
+        <span>Prometheus</span>
+        <span>·</span>
+        <span>Grafana</span>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,41 @@
+# =============================================================================
+# Gunicorn Systemd Service
+# Install path: /etc/systemd/system/gunicorn.service
+#
+# After copying:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable gunicorn
+#   sudo systemctl start gunicorn
+# =============================================================================
+
+[Unit]
+Description=Gunicorn WSGI server for Django
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=ubuntu
+Group=www-data
+WorkingDirectory=/home/ubuntu/aws-django-cicd-monitoring
+
+# Load environment variables from .env file
+EnvironmentFile=/home/ubuntu/aws-django-cicd-monitoring/.env
+
+ExecStart=/home/ubuntu/aws-django-cicd-monitoring/venv/bin/gunicorn \
+          --workers 3 \
+          --bind unix:/run/gunicorn.sock \
+          --access-logfile /var/log/gunicorn/access.log \
+          --error-logfile /var/log/gunicorn/error.log \
+          --log-level info \
+          core.wsgi:application
+
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

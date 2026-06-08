@@ -1,0 +1,41 @@
+# =============================================================================
+# Grafana Server Systemd Service
+# Install path: /etc/systemd/system/grafana-server.service
+#
+# Grafana is installed via apt (recommended):
+#   sudo apt-get install -y grafana
+# The apt package ships its own service file. This template is for reference
+# or for a manual binary installation.
+#
+# After copying (manual install only):
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable grafana-server
+#   sudo systemctl start grafana-server
+# =============================================================================
+
+[Unit]
+Description=Grafana Dashboard Server
+Documentation=https://grafana.com/docs/grafana/latest/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=grafana
+Group=grafana
+
+Environment=GF_PATHS_CONFIG=/etc/grafana/grafana.ini
+Environment=GF_PATHS_DATA=/var/lib/grafana
+Environment=GF_PATHS_LOGS=/var/log/grafana
+Environment=GF_PATHS_PLUGINS=/var/lib/grafana/plugins
+
+ExecStart=/usr/sbin/grafana-server \
+          --config=${GF_PATHS_CONFIG} \
+          --homepath=/usr/share/grafana
+
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=10000
+
+[Install]
+WantedBy=multi-user.target

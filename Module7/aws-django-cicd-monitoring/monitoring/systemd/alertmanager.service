@@ -1,0 +1,36 @@
+# =============================================================================
+# Alertmanager Systemd Service
+# Install path: /etc/systemd/system/alertmanager.service
+#
+# Prerequisites:
+#   sudo useradd --no-create-home --shell /bin/false alertmanager
+#   sudo mkdir /etc/alertmanager /var/lib/alertmanager
+#   # Download & extract alertmanager binary to /usr/local/bin/alertmanager
+#
+# After copying:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable alertmanager
+#   sudo systemctl start alertmanager
+# =============================================================================
+
+[Unit]
+Description=Prometheus Alertmanager
+Documentation=https://prometheus.io/docs/alerting/latest/alertmanager/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=alertmanager
+Group=alertmanager
+
+ExecStart=/usr/local/bin/alertmanager \
+          --config.file=/etc/alertmanager/alertmanager.yml \
+          --storage.path=/var/lib/alertmanager/data \
+          --web.listen-address=0.0.0.0:9093
+
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

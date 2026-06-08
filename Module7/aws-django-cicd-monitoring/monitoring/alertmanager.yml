@@ -1,0 +1,70 @@
+# =============================================================================
+# Alertmanager Configuration
+# Path on EC2: /etc/alertmanager/alertmanager.yml
+# Replace all <PLACEHOLDER> values before deploying.
+# =============================================================================
+
+global:
+  resolve_timeout: 5m
+
+  # SMTP settings for email alerts
+  smtp_smarthost: "<SMTP_HOST>:<SMTP_PORT>"       # e.g. smtp.gmail.com:587
+  smtp_from: "<SMTP_FROM_EMAIL>"                  # e.g. alerts@yourdomain.com
+  smtp_auth_username: "<SMTP_AUTH_USERNAME>"      # usually same as smtp_from
+  smtp_auth_password: "<SMTP_AUTH_PASSWORD>"      # use an App Password for Gmail
+  smtp_require_tls: true
+
+# -----------------------------------------------------------------------
+# Routing tree
+# -----------------------------------------------------------------------
+route:
+  group_by: ["alertname", "instance"]
+  group_wait: 30s           # Wait before sending the first notification
+  group_interval: 5m        # Wait before sending a notification about new alerts
+  repeat_interval: 3h       # Resend if alert is still firing after this duration
+  receiver: "email-alerts"
+
+  routes:
+    # Critical alerts get notified immediately with no grouping delay
+    - match:
+        severity: critical
+      receiver: "email-alerts"
+      group_wait: 10s
+      repeat_interval: 1h
+
+    # Warning alerts use default routing
+    - match:
+        severity: warning
+      receiver: "email-alerts"
+
+# -----------------------------------------------------------------------
+# Receivers
+# -----------------------------------------------------------------------
+receivers:
+  - name: "email-alerts"
+    email_configs:
+      - to: "<RECEIVER_EMAIL>"                    # e.g. devops-team@yourdomain.com
+        send_resolved: true
+        headers:
+          Subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }} - {{ .GroupLabels.instance }}'
+        html: |
+          <h3>Alert: {{ .GroupLabels.alertname }}</h3>
+          <p><strong>Status:</strong> {{ .Status }}</p>
+          {{ range .Alerts }}
+          <p>
+            <strong>Instance:</strong> {{ .Labels.instance }}<br/>
+            <strong>Severity:</strong> {{ .Labels.severity }}<br/>
+            <strong>Summary:</strong> {{ .Annotations.summary }}<br/>
+            <strong>Description:</strong> {{ .Annotations.description }}
+          </p>
+          {{ end }}
+
+# -----------------------------------------------------------------------
+# Inhibition rules — suppress warning if critical is already firing
+# -----------------------------------------------------------------------
+inhibit_rules:
+  - source_match:
+      severity: "critical"
+    target_match:
+      severity: "warning"
+    equal: ["alertname", "instance"]

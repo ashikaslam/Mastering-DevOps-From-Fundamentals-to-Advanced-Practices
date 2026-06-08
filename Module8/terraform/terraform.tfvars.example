@@ -1,0 +1,8 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit real values.
+
+aws_region    = "us-east-1"
+instance_type = "t2.micro"
+ami_id        = "ami-0c7217cdde317cfec"   # Ubuntu 22.04 LTS - us-east-1
+key_name      = "your-keypair-name"
+project_name  = "module8-monitoring"

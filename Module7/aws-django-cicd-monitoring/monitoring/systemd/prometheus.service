@@ -1,0 +1,41 @@
+# =============================================================================
+# Prometheus Systemd Service
+# Install path: /etc/systemd/system/prometheus.service
+#
+# Prerequisites:
+#   sudo useradd --no-create-home --shell /bin/false prometheus
+#   sudo mkdir /etc/prometheus /var/lib/prometheus
+#   # Download & extract prometheus binary to /usr/local/bin/prometheus
+#
+# After copying:
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable prometheus
+#   sudo systemctl start prometheus
+# =============================================================================
+
+[Unit]
+Description=Prometheus Monitoring System
+Documentation=https://prometheus.io/docs/introduction/overview/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prometheus
+Group=prometheus
+
+ExecStart=/usr/local/bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/var/lib/prometheus/data \
+          --storage.tsdb.retention.time=15d \
+          --web.console.templates=/etc/prometheus/consoles \
+          --web.console.libraries=/etc/prometheus/console_libraries \
+          --web.listen-address=0.0.0.0:9090 \
+          --web.enable-lifecycle
+
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

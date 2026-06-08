@@ -1,0 +1,45 @@
+# =============================================================================
+# Prometheus Configuration
+# Path on EC2: /etc/prometheus/prometheus.yml
+# =============================================================================
+
+global:
+  scrape_interval: 15s          # How often to scrape targets
+  evaluation_interval: 15s      # How often to evaluate alerting rules
+  scrape_timeout: 10s
+
+# Alertmanager integration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - localhost:9093     # Alertmanager default port
+
+# Load alerting rules
+rule_files:
+  - "/etc/prometheus/alert_rules.yml"
+
+# =============================================================================
+# Scrape configurations
+# =============================================================================
+scrape_configs:
+
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Node Exporter — system-level metrics (CPU, RAM, Disk, Network)
+  - job_name: "node_exporter"
+    static_configs:
+      - targets: ["localhost:9100"]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: "ec2-production"
+
+  # Django / Gunicorn — add django-prometheus later for app metrics
+  # - job_name: "django"
+  #   static_configs:
+  #     - targets: ["localhost:8000"]
+  #   metrics_path: /metrics
