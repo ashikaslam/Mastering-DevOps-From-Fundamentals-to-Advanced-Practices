@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: config-test-pod
+spec:
+  containers:
+  - name: test-container
+    image: nginx:1.25.1
+    env:
+    # ConfigMap থেকে ডেটা নেওয়া
+    - name: MY_APP_COLOR
+      valueFrom:
+        configMapKeyRef:
+          name: app-config
+          key: APP_COLOR
+    # Secret থেকে ডেটা নেওয়া
+    - name: MY_DB_PASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: app-secret
+          key: DB_PASSWORD

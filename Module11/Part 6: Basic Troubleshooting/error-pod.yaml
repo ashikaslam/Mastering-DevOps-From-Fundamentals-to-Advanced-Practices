@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: faulty-nginx-pod
+spec:
+  containers:
+  - name: nginx-container
+    image: nginx:invalid-tag-12345  # এই ট্যাগটি ডকার হাবে নেই, তাই এটি এরর দেবে
