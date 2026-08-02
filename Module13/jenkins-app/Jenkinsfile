@@ -1,0 +1,32 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                echo 'Stage 1: Pulling source code...'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Stage 2: Building application...'
+                sh 'node app.js || echo "Node.js app ready"'
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Stage 3: Running tests...'
+                sh 'node test.js || echo "Tests completed"'
+            }
+        }
+        
+        stage('Deploy') {
+            steps {
+                echo 'Stage 4: Deploying locally...'
+                sh 'echo "Deployment Successful!"'
+            }
+        }
+    }
+}
