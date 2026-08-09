@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  labels:
+    app: backend
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+        tier: backend
+    spec:
+      containers:
+        - name: backend
+          image: node:18-alpine
+          imagePullPolicy: IfNotPresent
+          # Placeholder API: serves a small JSON health/info payload on :5000 so the
+          # tier is testable without a private image. Swap for your own API image.
+          command: ["node", "-e"]
+          args:
+            - |
+              const http = require('http');
+              const port = process.env.PORT || 5000;
+              http.createServer((req, res) => {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({
+                  status: 'ok',
+                  pod: process.env.HOSTNAME,
+                  db_host: process.env.DB_HOST,
+                  db_port: process.env.DB_PORT,
+                  db_user: process.env.DB_USERNAME
+                }));
+              }).listen(port, () => console.log('backend listening on ' + port));
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongo-username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: mongo-password
+          envFrom:
+            - configMapRef:
+                name: app-config
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
