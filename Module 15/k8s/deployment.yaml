@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: module-15-app
+  labels:
+    app: module-15-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: module-15-app
+  template:
+    metadata:
+      labels:
+        app: module-15-app
+    spec:
+      containers:
+        - name: app
+          image: your-dockerhub-username/module-15-app:1.0.0
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DB_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: db-pass
+            - name: API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: api-key
