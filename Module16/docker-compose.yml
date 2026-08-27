@@ -1,0 +1,12 @@
+services:
+  localstack:
+    container_name: module16-localstack
+    image: localstack/localstack:3.4.0
+    ports:
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
+    environment:
+      - SERVICES=s3,lambda,iam
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
