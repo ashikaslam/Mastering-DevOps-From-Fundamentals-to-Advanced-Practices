@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-svc
+  namespace: stage
+  labels:
+    app: backend
+    env: stage
+spec:
+  type: ClusterIP
+  selector:
+    app: backend
+    env: stage
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5000
+      targetPort: 5000

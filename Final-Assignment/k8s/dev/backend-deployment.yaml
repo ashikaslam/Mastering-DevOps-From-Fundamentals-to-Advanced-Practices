@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: dev
+  labels:
+    app: backend
+    env: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+      env: dev
+  template:
+    metadata:
+      labels:
+        app: backend
+        env: dev
+    spec:
+      containers:
+        - name: backend
+          image: supportchat-backend:dev-<SHA>   # replaced by CI pipeline
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+          env:
+            - name: NODE_ENV
+              value: "development"
+            - name: PORT
+              value: "5000"
+            - name: CLIENT_URL
+              value: "http://frontend-svc:80"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 20

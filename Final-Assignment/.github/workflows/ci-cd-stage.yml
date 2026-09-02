@@ -1,0 +1,138 @@
+# =============================================================================
+# CI/CD Pipeline — stage environment
+# Trigger : manual (workflow_dispatch)
+# Actions : lint → build prod images → push to registry → deploy to k8s/stage
+# Uses production Dockerfiles so staging mirrors prod as closely as possible.
+# =============================================================================
+name: CI/CD — Stage
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Reason for manual deployment"
+        required: false
+        default: "Manual stage deploy"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/supportchat
+  K8S_NAMESPACE: stage
+
+jobs:
+  # ── 1. Lint & type-check ────────────────────────────────────────────────────
+  lint:
+    name: Lint & Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install & lint backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm run typecheck
+
+      - name: Enable Corepack (yarn)
+        run: corepack enable
+
+      - name: Install & lint frontend
+        working-directory: frontend
+        run: |
+          yarn install --frozen-lockfile
+          yarn lint
+
+  # ── 2. Build & push Docker images (prod Dockerfiles) ───────────────────────
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: lint
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      sha_short: ${{ steps.vars.outputs.sha_short }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set image tag vars
+        id: vars
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & push frontend (stage)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/frontend.prod.Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ secrets.STAGE_API_URL }}
+            VITE_SOCKET_URL=${{ secrets.STAGE_SOCKET_URL }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:stage-${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:stage-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push backend (stage)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/backend.prod.Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:stage-${{ steps.vars.outputs.sha_short }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:stage-latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 3. Deploy to k8s/stage ─────────────────────────────────────────────────
+  deploy:
+    name: Deploy → stage
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: stage
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBECONFIG_STAGE }}
+
+      - name: Substitute image SHA in manifests
+        env:
+          SHA: ${{ needs.build-and-push.outputs.sha_short }}
+        run: |
+          sed -i "s|supportchat-frontend:stage-<SHA>|${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-frontend:stage-${SHA}|g" k8s/stage/frontend-deployment.yaml
+          sed -i "s|supportchat-backend:stage-<SHA>|${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:stage-${SHA}|g"   k8s/stage/backend-deployment.yaml
+
+      - name: Ensure namespace exists
+        run: kubectl get namespace ${{ env.K8S_NAMESPACE }} || kubectl create namespace ${{ env.K8S_NAMESPACE }}
+
+      - name: Apply manifests
+        run: kubectl apply -f k8s/stage/ --namespace=${{ env.K8S_NAMESPACE }}
+
+      - name: Wait for rollout
+        run: |
+          kubectl rollout status deployment/frontend --namespace=${{ env.K8S_NAMESPACE }} --timeout=180s
+          kubectl rollout status deployment/backend  --namespace=${{ env.K8S_NAMESPACE }} --timeout=180s
